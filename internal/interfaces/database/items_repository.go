@@ -192,9 +192,24 @@ func scanItem(scanner interface {
 	}
 
 	if purchaseDate != "" {
-		if parsedDate, err := time.Parse("2006-01-02", purchaseDate); err == nil {
-			item.PurchaseDate = parsedDate.Format("2006-01-02")
-		} else {
+		// 複数の日付形式に対応してパース
+		formats := []string{
+			"2006-01-02",          // YYYY-MM-DD
+			time.RFC3339,          // 2006-01-02T15:04:05Z07:00
+			"2006-01-02 15:04:05", // YYYY-MM-DD HH:MM:SS
+		}
+		
+		parsed := false
+		for _, format := range formats {
+			if parsedDate, err := time.Parse(format, purchaseDate); err == nil {
+				item.PurchaseDate = parsedDate.Format("2006-01-02")
+				parsed = true
+				break
+			}
+		}
+		
+		// どの形式でもパースできない場合はそのまま使用
+		if !parsed {
 			item.PurchaseDate = purchaseDate
 		}
 	}
