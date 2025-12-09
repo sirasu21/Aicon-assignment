@@ -335,3 +335,144 @@ func TestGetValidCategories(t *testing.T) {
 	assert.Equal(t, expected, categories)
 	assert.Len(t, categories, 5)
 }
+
+func TestItem_PartialUpdate(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialItem   func() *Item
+		updateName    *string
+		updateBrand   *string
+		updatePrice   *int
+		wantErr       bool
+		expectedErr   string
+		checkName     string
+		checkBrand    string
+		checkPrice    int
+		checkCategory string
+		checkDate     string
+	}{
+		{
+			name: "正常系: 複数フィールド同時更新",
+			initialItem: func() *Item {
+				item, _ := NewItem("時計1", "時計", "ROLEX", 1000000, "2023-01-01")
+				return item
+			},
+			updateName:    strPtr("新しい名前"),
+			updateBrand:   strPtr("新しいブランド"),
+			updatePrice:   intPtr(1500000),
+			wantErr:       false,
+			checkName:     "新しい名前",
+			checkBrand:    "新しいブランド",
+			checkPrice:    1500000,
+			checkCategory: "時計",
+			checkDate:     "2023-01-01",
+		},
+		{
+			name: "正常系: すべて nil（何も更新しない）",
+			initialItem: func() *Item {
+				item, _ := NewItem("時計1", "時計", "ROLEX", 1000000, "2023-01-01")
+				return item
+			},
+			updateName:    nil,
+			updateBrand:   nil,
+			updatePrice:   nil,
+			wantErr:       false,
+			checkName:     "時計1",
+			checkBrand:    "ROLEX",
+			checkPrice:    1000000,
+			checkCategory: "時計",
+			checkDate:     "2023-01-01",
+		},
+		{
+			name: "異常系: 無効な name（空文字）",
+			initialItem: func() *Item {
+				item, _ := NewItem("時計1", "時計", "ROLEX", 1000000, "2023-01-01")
+				return item
+			},
+			updateName:  strPtr(""),
+			updateBrand: nil,
+			updatePrice: nil,
+			wantErr:     true,
+			expectedErr: "name is required",
+		},
+		{
+			name: "異常系: 無効な name（100文字超）",
+			initialItem: func() *Item {
+				item, _ := NewItem("時計1", "時計", "ROLEX", 1000000, "2023-01-01")
+				return item
+			},
+			updateName:  strPtr("ロレックス デイトナ 16520 18K イエローゴールド ブラック文字盤 自動巻き クロノグラフ メンズ 腕時計 1988年製 ヴィンテージ 希少 コレクション アイテム"),
+			updateBrand: nil,
+			updatePrice: nil,
+			wantErr:     true,
+			expectedErr: "name must be 100 characters or less",
+		},
+		{
+			name: "異常系: 無効な brand（空文字）",
+			initialItem: func() *Item {
+				item, _ := NewItem("時計1", "時計", "ROLEX", 1000000, "2023-01-01")
+				return item
+			},
+			updateName:  nil,
+			updateBrand: strPtr(""),
+			updatePrice: nil,
+			wantErr:     true,
+			expectedErr: "brand is required",
+		},
+		{
+			name: "異常系: 無効な purchase_price（負の値）",
+			initialItem: func() *Item {
+				item, _ := NewItem("時計1", "時計", "ROLEX", 1000000, "2023-01-01")
+				return item
+			},
+			updateName:  nil,
+			updateBrand: nil,
+			updatePrice: intPtr(-1),
+			wantErr:     true,
+			expectedErr: "purchase_price must be 0 or greater",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := tt.initialItem()
+			originalUpdatedAt := item.UpdatedAt
+			originalCategory := item.Category
+			originalPurchaseDate := item.PurchaseDate
+			time.Sleep(1 * time.Millisecond) // UpdatedAt の変更を確認するため
+
+			err := item.PartialUpdate(tt.updateName, tt.updateBrand, tt.updatePrice)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+				return
+			}
+
+			assert.NoError(t, err)
+
+			// 更新後の値をチェック
+			assert.Equal(t, tt.checkName, item.Name)
+			assert.Equal(t, tt.checkBrand, item.Brand)
+			assert.Equal(t, tt.checkPrice, item.PurchasePrice)
+
+			// 不変フィールドが変更されていないかチェック
+			assert.Equal(t, originalCategory, item.Category)
+			assert.Equal(t, originalPurchaseDate, item.PurchaseDate)
+			assert.Equal(t, tt.checkCategory, item.Category)
+			assert.Equal(t, tt.checkDate, item.PurchaseDate)
+
+			// UpdatedAt が更新されているかチェック
+			assert.True(t, item.UpdatedAt.After(originalUpdatedAt))
+		})
+	}
+}
+
+// ヘルパー関数
+func strPtr(s string) *string {
+	return &s
+}
+
+func intPtr(i int) *int {
+	return &i
+}
