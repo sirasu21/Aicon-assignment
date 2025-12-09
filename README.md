@@ -113,7 +113,7 @@ curl -X PATCH http://localhost:8080/items/1 \
   }'
 
 # 複数フィールドを同時更新
-curl -X PATCH http://localhost:8080/items/1 \
+curl -X PATCH http://localhost:8080/items/4 \
   -H "Content-Type: application/json" \
   -d '{
     "name": "新しい名前",
